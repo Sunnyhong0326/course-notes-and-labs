@@ -1,0 +1,26 @@
+# uv
+.venv/
+# keep uv.lock — it's what makes `uv sync` reproducible
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.python-version
+build/
+dist/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Environment / secrets
+.env
+
+# Editors
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+desktop.ini
+.DS_Store
