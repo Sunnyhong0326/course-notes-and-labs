@@ -15,10 +15,11 @@ dist/
 
 # Environment / secrets
 .env
-
+data/
 # Editors
 .vscode/
 .idea/
+runs/
 
 # OS
 Thumbs.db
