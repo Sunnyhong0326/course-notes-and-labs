@@ -1,0 +1,477 @@
+"""
+Slangpy adapter for ImGui Bundle
+"""
+
+import ctypes
+import logging
+import slangpy as spy
+import numpy as np
+from imgui_bundle import imgui
+
+logger = logging.getLogger(__name__)
+
+
+REVERSE_KEY_MAP = {
+    # Function keys
+    spy.KeyCode.f1: imgui.Key.f1,
+    spy.KeyCode.f2: imgui.Key.f2,
+    spy.KeyCode.f3: imgui.Key.f3,
+    spy.KeyCode.f4: imgui.Key.f4,
+    spy.KeyCode.f5: imgui.Key.f5,
+    spy.KeyCode.f6: imgui.Key.f6,
+    spy.KeyCode.f7: imgui.Key.f7,
+    spy.KeyCode.f8: imgui.Key.f8,
+    spy.KeyCode.f9: imgui.Key.f9,
+    spy.KeyCode.f10: imgui.Key.f10,
+    spy.KeyCode.f11: imgui.Key.f11,
+    spy.KeyCode.f12: imgui.Key.f12,
+    # Navigation keys
+    spy.KeyCode.tab: imgui.Key.tab,
+    spy.KeyCode.left: imgui.Key.left_arrow,
+    spy.KeyCode.right: imgui.Key.right_arrow,
+    spy.KeyCode.up: imgui.Key.up_arrow,
+    spy.KeyCode.down: imgui.Key.down_arrow,
+    spy.KeyCode.page_up: imgui.Key.page_up,
+    spy.KeyCode.page_down: imgui.Key.page_down,
+    spy.KeyCode.home: imgui.Key.home,
+    spy.KeyCode.end: imgui.Key.end,
+    spy.KeyCode.insert: imgui.Key.insert,
+    spy.KeyCode.delete: imgui.Key.delete,
+    # Editing keys
+    spy.KeyCode.backspace: imgui.Key.backspace,
+    spy.KeyCode.space: imgui.Key.space,
+    spy.KeyCode.enter: imgui.Key.enter,
+    spy.KeyCode.escape: imgui.Key.escape,
+    # Modifier keys
+    spy.KeyCode.left_shift: imgui.Key.left_shift,
+    spy.KeyCode.right_shift: imgui.Key.right_shift,
+    spy.KeyCode.left_control: imgui.Key.left_ctrl,
+    spy.KeyCode.right_control: imgui.Key.right_ctrl,
+    spy.KeyCode.left_alt: imgui.Key.left_alt,
+    spy.KeyCode.right_alt: imgui.Key.right_alt,
+    spy.KeyCode.left_super: imgui.Key.left_super,
+    spy.KeyCode.right_super: imgui.Key.right_super,
+    # Lock keys
+    spy.KeyCode.caps_lock: imgui.Key.caps_lock,
+    spy.KeyCode.num_lock: imgui.Key.num_lock,
+    spy.KeyCode.scroll_lock: imgui.Key.scroll_lock,
+    # Special keys
+    spy.KeyCode.print_screen: imgui.Key.print_screen,
+    spy.KeyCode.pause: imgui.Key.pause,
+    spy.KeyCode.menu: imgui.Key.menu,
+    # Letter keys (a-z)
+    spy.KeyCode.a: imgui.Key.a,
+    spy.KeyCode.b: imgui.Key.b,
+    spy.KeyCode.c: imgui.Key.c,
+    spy.KeyCode.d: imgui.Key.d,
+    spy.KeyCode.e: imgui.Key.e,
+    spy.KeyCode.f: imgui.Key.f,
+    spy.KeyCode.g: imgui.Key.g,
+    spy.KeyCode.h: imgui.Key.h,
+    spy.KeyCode.i: imgui.Key.i,
+    spy.KeyCode.j: imgui.Key.j,
+    spy.KeyCode.k: imgui.Key.k,
+    spy.KeyCode.l: imgui.Key.l,
+    spy.KeyCode.m: imgui.Key.m,
+    spy.KeyCode.n: imgui.Key.n,
+    spy.KeyCode.o: imgui.Key.o,
+    spy.KeyCode.p: imgui.Key.p,
+    spy.KeyCode.q: imgui.Key.q,
+    spy.KeyCode.r: imgui.Key.r,
+    spy.KeyCode.s: imgui.Key.s,
+    spy.KeyCode.t: imgui.Key.t,
+    spy.KeyCode.u: imgui.Key.u,
+    spy.KeyCode.v: imgui.Key.v,
+    spy.KeyCode.w: imgui.Key.w,
+    spy.KeyCode.x: imgui.Key.x,
+    spy.KeyCode.y: imgui.Key.y,
+    spy.KeyCode.z: imgui.Key.z,
+    # Keypad
+    spy.KeyCode.keypad0: imgui.Key.keypad0,
+    spy.KeyCode.keypad1: imgui.Key.keypad1,
+    spy.KeyCode.keypad2: imgui.Key.keypad2,
+    spy.KeyCode.keypad3: imgui.Key.keypad3,
+    spy.KeyCode.keypad4: imgui.Key.keypad4,
+    spy.KeyCode.keypad5: imgui.Key.keypad5,
+    spy.KeyCode.keypad6: imgui.Key.keypad6,
+    spy.KeyCode.keypad7: imgui.Key.keypad7,
+    spy.KeyCode.keypad8: imgui.Key.keypad8,
+    spy.KeyCode.keypad9: imgui.Key.keypad9,
+    spy.KeyCode.keypad_add: imgui.Key.keypad_add,
+    spy.KeyCode.keypad_subtract: imgui.Key.keypad_subtract,
+    spy.KeyCode.keypad_multiply: imgui.Key.keypad_multiply,
+    spy.KeyCode.keypad_divide: imgui.Key.keypad_divide,
+    spy.KeyCode.keypad_enter: imgui.Key.keypad_enter,
+    spy.KeyCode.keypad_equal: imgui.Key.keypad_equal,
+    spy.KeyCode.keypad_del: imgui.Key.keypad_decimal,
+    # Punctuation keys
+    spy.KeyCode.comma: imgui.Key.comma,
+    spy.KeyCode.period: imgui.Key.period,
+    spy.KeyCode.semicolon: imgui.Key.semicolon,
+    spy.KeyCode.apostrophe: imgui.Key.apostrophe,
+    spy.KeyCode.slash: imgui.Key.slash,
+    spy.KeyCode.backslash: imgui.Key.backslash,
+    spy.KeyCode.equal: imgui.Key.equal,
+    spy.KeyCode.minus: imgui.Key.minus,
+    spy.KeyCode.left_bracket: imgui.Key.left_bracket,
+    spy.KeyCode.right_bracket: imgui.Key.right_bracket,
+    spy.KeyCode.grave_accent: imgui.Key.grave_accent,
+}
+
+
+class ImguiAdapter:
+    """
+    The slangpy renderer adapter for ImGui Bundle.
+    """
+
+    imgui_ui_scale: float = 1.0
+    framebuffer_scale: tuple[float, float] = (1.0, 1.0)
+
+    def __init__(
+        self, window: spy.Window, device: spy.Device, imgui_ui_scale: float = 1.0
+    ) -> None:
+        if not imgui.get_current_context():
+            raise RuntimeError(
+                "No valid ImGui context. Use imgui.create_context() first and/or "
+                "imgui.set_current_context()."
+            )
+
+        # Registered textures.
+        self._textures = {}
+        self._texture_id = 0
+
+        self.window = window
+        self.device = device
+        self.imgui_ui_scale = imgui_ui_scale
+        self.framebuffer_scale = self._get_framebuffer_scale()
+
+        # Create window surface.
+        self.surface = self.device.create_surface(self.window)
+
+        # Input layout.
+        self.input_layout = self.device.create_input_layout(
+            input_elements=[
+                {
+                    "semantic_name": "POSITION",
+                    "semantic_index": 0,
+                    "format": spy.Format.rg32_float,
+                },
+                {
+                    "semantic_name": "TEXCOORD",
+                    "semantic_index": 0,
+                    "format": spy.Format.rg32_float,
+                    "offset": 8,
+                },
+                {
+                    "semantic_name": "COLOR",
+                    "semantic_index": 0,
+                    "format": spy.Format.rgba8_unorm,
+                    "offset": 16,
+                },
+            ],
+            vertex_streams=[{"stride": 20}],
+        )
+        # Load shader modules.
+        self.program = self.device.load_program(
+            "imgui_renderer.slang", ["vertexMain", "fragmentMain"]
+        )
+        self.pipeline = self.device.create_render_pipeline(
+            program=self.program,
+            input_layout=self.input_layout,
+            targets=[
+                {
+                    "format": spy.Format.rgba16_float,
+                    "enable_blend": True,
+                    "color": spy.AspectBlendDesc(
+                        {
+                            "src_factor": spy.BlendFactor.src_alpha,
+                            "dst_factor": spy.BlendFactor.inv_src_alpha,
+                            "op": spy.BlendOp.add,
+                        }
+                    ),
+                }
+            ],
+        )
+
+        # Create vertex and index buffers.
+        self.vbo = self.device.create_buffer(
+            usage=spy.BufferUsage.vertex_buffer | spy.BufferUsage.shader_resource,
+            label="imgui_vertex_buffer",
+            size=imgui.VERTEX_SIZE * 65536,
+        )
+        self.ibo = self.device.create_buffer(
+            usage=spy.BufferUsage.index_buffer | spy.BufferUsage.shader_resource,
+            label="imgui_index_buffer",
+            size=imgui.INDEX_SIZE * 65536,
+        )
+
+        # Get ImGui IO.
+        self.io = imgui.get_io()
+        # Font texture.
+        self._font_texture = None
+        self.refresh_font_texture()
+
+        # Resize ImGui display size.
+        self.resize(self.window.width, self.window.height)
+
+    def register_texture(self, texture: spy.Texture) -> int:
+        texture_id = self._texture_id
+        self._texture_id += 1
+        sampler = self.device.create_sampler()
+        self._textures[texture_id] = (texture, sampler)
+        return texture_id
+
+    def unregister_texture(self, texture_id: int) -> None:
+        if texture_id in self._textures:
+            del self._textures[texture_id]
+
+    def render(self, draw_data: imgui.ImDrawData) -> None:
+        """Method to render ImGui draw data at the end of each frame.
+
+        :param draw_data: The ImGui draw data to render.
+        """
+        # Acquire next surface texture.
+        surface_texture = self.surface.acquire_next_image()
+
+        # Rendering commands.
+        command_encoder = self.device.create_command_encoder()
+
+        # Projection matrix.
+        width, height = self.io.display_size.x, self.io.display_size.y
+        fb_w = int(width * self.io.display_framebuffer_scale.x)
+        fb_h = int(height * self.io.display_framebuffer_scale.y)
+        proj_matrix = np.array(
+            [
+                [2.0 / width, 0.0, 0.0, -1.0],
+                [0.0, -2.0 / height, 0.0, 1.0],
+                [0.0, 0.0, -1.0, 0.0],
+                [0.0, 0.0, 0.0, 1.0],
+            ]
+        )
+
+        # Scale clip rects
+        draw_data.scale_clip_rects(imgui.ImVec2(*self.io.display_framebuffer_scale))
+
+        # Clear frame buffer.
+        with command_encoder.begin_render_pass(
+            {
+                "color_attachments": [
+                    {
+                        "view": self.frame_buffer.create_view({}),
+                        "load_op": spy.LoadOp.clear,
+                        "store_op": spy.StoreOp.store,
+                        "clear_value": (0.0, 0.0, 0.0, 0.0),
+                    }
+                ]
+            }
+        ):
+            pass
+
+        for commands in draw_data.cmd_lists:
+            vtx_type = ctypes.c_byte * commands.vtx_buffer.size() * imgui.VERTEX_SIZE
+            idx_type = ctypes.c_byte * commands.idx_buffer.size() * imgui.INDEX_SIZE
+            vtx_arr = (vtx_type).from_address(commands.vtx_buffer.data_address())
+            idx_arr = (idx_type).from_address(commands.idx_buffer.data_address())
+            # Convert to numpy arrays.
+            vtx_arr_np = np.frombuffer(vtx_arr, dtype=np.uint8)
+            idx_arr_np = np.frombuffer(idx_arr, dtype=np.uint32)
+            # Update vertex buffer.
+            command_encoder.upload_buffer_data(self.vbo, 0, vtx_arr_np)
+            # Update index buffer.
+            command_encoder.upload_buffer_data(self.ibo, 0, idx_arr_np)
+
+            for command in commands.cmd_buffer:
+                texture_sampler = self._textures.get(command.texture_id)
+                if texture_sampler is None:
+                    raise ValueError("Texture not registered with ImguiAdapter.")
+
+                texture, sampler = texture_sampler
+
+                # Render ImGui draw data to the frame buffer.
+                with command_encoder.begin_render_pass(
+                    {
+                        "color_attachments": [
+                            {
+                                "view": self.frame_buffer.create_view({}),
+                                "load_op": spy.LoadOp.load,
+                                "store_op": spy.StoreOp.store,
+                            }
+                        ]
+                    }
+                ) as pass_encoder:
+                    root = pass_encoder.bind_pipeline(self.pipeline)
+                    root_cursor = spy.ShaderCursor(root)
+                    root_cursor["uniforms"]["proj"].write(proj_matrix)
+                    root_cursor["uniforms"]["texture"].write(texture)
+                    root_cursor["uniforms"]["sampler"].write(sampler)
+
+                    x, y, z, w = (
+                        command.clip_rect.x,
+                        command.clip_rect.y,
+                        command.clip_rect.z,
+                        command.clip_rect.w,
+                    )
+                    x = max(x, 0)
+                    y = max(y, 0)
+                    z = min(z, fb_w)
+                    w = min(w, fb_h)
+
+                    pass_encoder.set_render_state(
+                        {
+                            "viewports": [
+                                spy.Viewport.from_size(
+                                    self.frame_buffer.width, self.frame_buffer.height
+                                )
+                            ],
+                            "scissor_rects": [
+                                spy.ScissorRect(
+                                    {
+                                        "min_x": int(x),
+                                        "min_y": int(y),
+                                        "max_x": int(z),
+                                        "max_y": int(w),
+                                    }
+                                )
+                            ],
+                            "vertex_buffers": [self.vbo],
+                            "index_buffer": self.ibo,
+                            "index_format": (
+                                spy.IndexFormat.uint16
+                                if imgui.INDEX_SIZE == 2
+                                else spy.IndexFormat.uint32
+                            ),
+                        }
+                    )
+                    pass_encoder.draw_indexed(
+                        {
+                            "vertex_count": command.elem_count,
+                            "start_index_location": command.idx_offset,
+                        }
+                    )
+
+        # Blit to the surface texture.
+        command_encoder.blit(surface_texture, self.frame_buffer)
+        self.device.submit_command_buffer(command_encoder.finish())
+        del surface_texture
+
+        self.surface.present()
+
+    def refresh_font_texture(self) -> None:
+        """Method to refresh the font texture used by ImGui."""
+        texture_data = self.io.fonts.get_tex_data_as_rgba32()  # pyright: ignore
+        height, width, _ = texture_data.shape
+
+        if self._font_texture is not None:
+            self.unregister_texture(self.io.fonts.tex_id)
+
+        self._font_texture = self.device.create_texture(
+            type=spy.TextureType.texture_2d,
+            format=spy.Format.rgba8_unorm,
+            width=width,
+            height=height,
+            usage=spy.TextureUsage.shader_resource | spy.TextureUsage.unordered_access,
+            label="imgui_font_texture",
+            data=texture_data,
+        )
+        self.io.fonts.tex_id = self.register_texture(self._font_texture)
+        self.io.fonts.clear_tex_data()
+
+    def update_framebuffer_scale(self) -> bool:
+        framebuffer_scale = self._get_framebuffer_scale()
+        if (
+            abs(framebuffer_scale[0] - self.framebuffer_scale[0]) < 1e-6
+            and abs(framebuffer_scale[1] - self.framebuffer_scale[1]) < 1e-6
+        ):
+            return False
+
+        self.framebuffer_scale = framebuffer_scale
+        self.resize(self.window.width, self.window.height)
+        return True
+
+    def resize(self, width: int, height: int) -> None:
+        """Method to handle window resizing.
+
+        :param width: The new width of the window.
+        :param height: The new height of the window.
+        """
+        imgui_ui_scale = max(float(self.imgui_ui_scale), 1.0)
+        framebuffer_scale_x, framebuffer_scale_y = self.framebuffer_scale
+        display_width = width / imgui_ui_scale
+        display_height = height / imgui_ui_scale
+        # Update ImGui display size.
+        self.io.display_size = imgui.ImVec2(display_width, display_height)
+        self.io.display_framebuffer_scale = imgui.ImVec2(
+            imgui_ui_scale * framebuffer_scale_x,
+            imgui_ui_scale * framebuffer_scale_y,
+        )
+        # Update framebuffer scale.
+        self.device.wait()
+        if width > 0 and height > 0:
+            framebuffer_width = max(1, int(round(width * framebuffer_scale_x)))
+            framebuffer_height = max(1, int(round(height * framebuffer_scale_y)))
+            self.surface.configure(width=framebuffer_width, height=framebuffer_height)
+            self.frame_buffer = self._create_frame_buffer(
+                framebuffer_width, framebuffer_height
+            )
+        else:
+            self.surface.unconfigure()
+
+    def key_event(self, event: spy.KeyboardEvent) -> None:
+        """Method to handle keyboard events.
+
+        :param event: The keyboard event.
+        """
+        key = event.key
+        if key in REVERSE_KEY_MAP:
+            imgui_key = REVERSE_KEY_MAP[key]
+            down = event.is_key_press()
+            self.io.add_key_event(imgui_key, down)
+
+    def mouse_event(self, event: spy.MouseEvent) -> None:
+        """Method to handle mouse events.
+
+        :param event: The mouse event.
+        """
+        # Mouse move event.
+        imgui_ui_scale = max(float(self.imgui_ui_scale), 1.0)
+        if event.is_move():
+            self.io.mouse_pos = imgui.ImVec2(
+                event.pos.x / imgui_ui_scale, event.pos.y / imgui_ui_scale
+            )
+        if event.is_button_down() or event.is_button_up():
+            down = event.is_button_down()
+            if event.button == spy.MouseButton.left:
+                self.io.mouse_down[0] = down
+            elif event.button == spy.MouseButton.right:
+                self.io.mouse_down[1] = down
+            elif event.button == spy.MouseButton.middle:
+                self.io.mouse_down[2] = down
+        if event.is_scroll():
+            self.io.mouse_wheel += event.scroll.y
+            self.io.mouse_wheel_h += event.scroll.x
+
+    def unicode_input(self, codepoint: int) -> None:
+        """Method to handle unicode character input.
+
+        :param codepoint: The unicode codepoint.
+        """
+        self.io.add_input_character(codepoint)
+
+    def shutdown(self) -> None:
+        """Method to shutdown the renderer and release resources."""
+        pass
+
+    def _create_frame_buffer(self, width: int, height: int) -> spy.Texture:
+        return self.device.create_texture(
+            format=spy.Format.rgba16_float,
+            width=width,
+            height=height,
+            usage=spy.TextureUsage.render_target
+            | spy.TextureUsage.shader_resource
+            | spy.TextureUsage.unordered_access,
+            label="output_texture",
+        )
+
+    def _get_framebuffer_scale(self) -> tuple[float, float]:
+        content_scale = self.window.content_scale
+        return (max(float(content_scale.x), 1.0), max(float(content_scale.y), 1.0))

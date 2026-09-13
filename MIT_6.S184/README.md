@@ -3,8 +3,8 @@
 - [Lecture Notes](./lecture_notes/MIT_FM_DM_lecture_notes.pdf)
 - [Labs](./notebooks/)
     - [Lab 1: Working with ODEs and SDEs](./notebooks/lab_one.ipynb)
-    - [Lab 2: Flow Matching and Score Matching]()
-    - [Lab 3: Diffusion Transformer and VAEs]()
+    - [Lab 2: Flow Matching and Score Matching](./notebooks/lab_two.ipynb)
+    - [Lab 3: Diffusion Transformer and VAEs](./notebooks/lab_three.ipynb)
 ### Install environment
 ```
 uv sync
