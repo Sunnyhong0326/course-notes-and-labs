@@ -20,7 +20,10 @@ data/
 .vscode/
 .idea/
 runs/
-
+*.exe
+*.dll
+*.suo
+.vs/
 # OS
 Thumbs.db
 desktop.ini
