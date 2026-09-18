@@ -241,6 +241,7 @@ Mesh::Mesh(Collada::PolymeshInfo& polyMesh, const Matrix4x4& transform) {
     if (polyMesh.environment_filename != "") {
 		unsigned int error = lodepng::decode(environment_texture, environment_texture_width, environment_texture_height, polyMesh.environment_filename);
 		if(error) cerr << "Texture (environment) loading error = " << polyMesh.environment_filename << endl;
+		cout << "Texture loading " << polyMesh.environment_filename << endl;
 		environmentTextureId_ = gl_mgr_->createTextureFromData(environment_texture.data(), environment_texture_width, environment_texture_height);
 	    doEnvironmentMapping_ = true;
     } else {
@@ -376,9 +377,8 @@ void Mesh::internalDraw(bool shadowPass, const Matrix4x4& worldToNDC) const {
 		if (doNormalMapping_)
         	shader_->setTextureSampler("normalTextureSampler", normalTextureId_);
 
-        // TODO CS248 Part 4: Environment Mapping:
-        // You want to pass the environment texture into the shader program.
-        // See diffuseTextureSampler for an example of passing textures.
+		if (doEnvironmentMapping_)
+        	shader_->setTextureSampler("envTextureSampler", environmentTextureId_);
 
         // TODO CS248 Part 5.2: Shadow Mapping:
         // You want to pass the array of shadow textures computed during shadow pass into the shader program.

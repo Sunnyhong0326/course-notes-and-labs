@@ -16,8 +16,7 @@ uniform sampler2D diffuseTextureSampler;
 
 // TODO CS248 Part 3: Normal Mapping
 uniform sampler2D normalTextureSampler;
-// TODO CS248 Part 4: Environment Mapping
-
+uniform sampler2D envTextureSampler;
 //
 // lighting environment definition. Scenes may contain directional
 // and point light sources, as well as an environment map
@@ -84,24 +83,10 @@ vec3 Phong_BRDF(vec3 L, vec3 V, vec3 N, vec3 diffuse_color, vec3 specular_color,
 //
 vec3 SampleEnvironmentMap(vec3 D)
 {
-    //
-    // TODO CS248 Part 4: Environment Mapping
-    // sample environment map in direction D.  This requires
-    // converting D into spherical coordinates where Y is the polar direction
-    // (warning: in our scene, theta is angle with Y axis, which differs from
-    // typical convention in physics)
-    //
-    // Tips:
-    //
-    // (1) See GLSL documentation of acos(x) and atan(x, y)
-    //
-    // (2) atan() returns an angle in the range -PI to PI, so you'll have to
-    //     convert negative values to the range 0 - 2PI
-    //
-    // (3) How do you convert theta and phi to normalized texture
-    //     coordinates in the domain [0,1]^2?
-
-    return vec3(.25, .25, .25);
+    float theta = acos(clamp(D.y, -1.0, 1.0));
+    float phi = atan(D.z, D.x);
+    vec2 uv = vec2(fract(phi / (2.0 * PI)), theta / PI);
+    return texture(envTextureSampler, uv).rgb;
 }
 
 //
@@ -154,13 +139,7 @@ void main(void)
 
     if (useMirrorBRDF)
     {
-        //
-        // TODO: CS248 Part 4: Environment Mapping:
-        // compute perfect mirror reflection direction here.
-        // You'll also need to implement environment map sampling in SampleEnvironmentMap()
-        //
-        vec3 R = normalize(vec3(1.0));
-        //
+        vec3 R = normalize(reflect(-V, N));
 
         // sample environment map
         vec3 envColor = SampleEnvironmentMap(R);
